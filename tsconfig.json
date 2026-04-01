@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -19,6 +20,8 @@
       }
     ],
     "paths": {
+      "@/types": ["./src/types.ts"],
+      "@/types/*": ["./src/types/*"],
       "@/*": ["./src/*"]
     }
   },
@@ -30,5 +33,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/hooks/UseJournal.ts",
+    "**/UseJournal.ts",
+    "src/components/journal/AireflectPanel.tsx",
+    "**/AireflectPanel.tsx"
+  ]
 }
