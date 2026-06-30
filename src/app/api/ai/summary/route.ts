@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function GET() {
   const session = await auth();
@@ -69,10 +66,8 @@ export async function GET() {
     `Total journal entries: ${journals.length}`,
   ].join("\n\n");
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 400,
-    system: `You are a personal growth analyst. 
+  try {
+    const systemPrompt = `You are a personal growth analyst. 
 Read the user's 30-day data and write a warm, honest growth summary.
 Structure your response as JSON with no markdown:
 {
@@ -81,22 +76,38 @@ Structure your response as JSON with no markdown:
   "challenge": "string (their main area to improve — be honest but kind)",
   "momentum": "high" | "medium" | "low",
   "advice": "string (2 sentences of forward-looking coaching)"
-}`,
-    messages: [
-      {
-        role: "user",
-        content: `My 30-day data:\n${context}`,
+}`;
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
       },
-    ],
-  });
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `My 30-day data:\n${context}`,
+          },
+        ],
+        max_tokens: 400,
+        temperature: 0.7,
+      }),
+    });
 
-  const raw =
-    response.content[0].type === "text" ? response.content[0].text : "{}";
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
 
-  try {
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
     const summary = JSON.parse(raw.replace(/```json|```/g, "").trim());
     return NextResponse.json(summary);
-  } catch {
+  } catch (err) {
+    console.error("[ai-summary] OpenRouter call failed:", err);
     return NextResponse.json(
       { error: "Failed to parse summary" },
       { status: 500 }

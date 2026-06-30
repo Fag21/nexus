@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
 import type { JournalInsights } from "@/types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function getUserId(session: unknown): string | null {
   const s = session as { user?: { id?: string } } | null | undefined;
@@ -46,10 +43,7 @@ export async function POST() {
     .join("\n\n---\n\n");
 
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 900,
-      system: `You are a warm, insightful clinical psychologist reviewing a client's recent journal entries.
+    const systemPrompt = `You are a warm, insightful clinical psychologist reviewing a client's recent journal entries.
 You are reflective and validating, never diagnostic or alarmist. You draw gently on CBT and positive psychology.
 Respond ONLY with valid JSON (no markdown, no extra text) matching exactly:
 {
@@ -61,22 +55,40 @@ Respond ONLY with valid JSON (no markdown, no extra text) matching exactly:
   "suggestions": ["2-4 small, concrete, doable suggestions for wellbeing or growth"],
   "focus": "one short focus or intention to carry into the coming week"
 }
-Speak directly to the person. Be specific to their entries, not generic. If anything suggests crisis or self-harm, gently encourage reaching out to a trusted person or professional support in the summary.`,
-      messages: [
-        {
-          role: "user",
-          content: `Here are my recent journal entries (newest first):\n\n${corpus}\n\nPlease reflect on them.`,
-        },
-      ],
+Speak directly to the person. Be specific to their entries, not generic. If anything suggests crisis or self-harm, gently encourage reaching out to a trusted person or professional support in the summary.`;
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Here are my recent journal entries (newest first):\n\n${corpus}\n\nPlease reflect on them.`,
+          },
+        ],
+        max_tokens: 900,
+        temperature: 0.7,
+      }),
     });
 
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : "{}";
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
     const insights = JSON.parse(
       raw.replace(/```json|```/g, "").trim()
     ) as JournalInsights;
     return NextResponse.json(insights);
-  } catch {
+  } catch (err) {
+    console.error("[insights] OpenRouter call failed:", err);
     return NextResponse.json(
       { error: "Could not generate insights right now." },
       { status: 500 }

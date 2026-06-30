@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 function getUserId(session: unknown): string | null {
   const s = session as { user?: { id?: string } } | null | undefined;
@@ -20,25 +17,47 @@ export async function POST(req: NextRequest) {
   if (!content?.trim())
     return NextResponse.json({ error: "No content" }, { status: 400 });
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 250,
-    system: `You are a warm, empathetic journal companion.
+  try {
+    const systemPrompt = `You are a warm, empathetic journal companion.
 Read the journal entry and respond with:
 1. One sentence reflecting what you heard — validate the feeling.
 2. One gentle, forward-looking insight or question to help them grow.
 Keep it personal, short, and human. No bullet points. No generic advice.
-Never start with "I". Mood context: ${mood}.`,
-    messages: [
-      {
-        role: "user",
-        content: `Journal entry:\n\n${content}`,
+Never start with "I". Mood context: ${mood}.`;
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
       },
-    ],
-  });
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Journal entry:\n\n${content}`,
+          },
+        ],
+        max_tokens: 250,
+        temperature: 0.7,
+      }),
+    });
 
-  const reflection =
-    response.content[0].type === "text" ? response.content[0].text : "";
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
 
-  return NextResponse.json({ reflection });
+    const data = await res.json();
+    const reflection = data.choices?.[0]?.message?.content ?? "";
+
+    return NextResponse.json({ reflection });
+  } catch (err) {
+    console.error("[ai-reflect] OpenRouter call failed:", err);
+    return NextResponse.json(
+      { error: "Could not generate reflection right now." },
+      { status: 500 }
+    );
+  }
 }

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import Anthropic from "@anthropic-ai/sdk";
 import type { HabitCoachPlan } from "@/types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Generates a personalised, behavioral-science-based plan for one habit.
 // Grounded in Atomic Habits / Tiny Habits: identity change, the habit loop
@@ -35,10 +32,7 @@ export async function POST(req: Request) {
     .join("\n");
 
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 900,
-      system: `You are a world-class habit coach trained in Atomic Habits and Tiny Habits.
+    const systemPrompt = `You are a world-class habit coach trained in Atomic Habits and Tiny Habits.
 The user wants to ${type} a habit. Produce a concise, practical, encouraging plan.
 Respond ONLY with valid JSON (no markdown, no extra text) matching exactly:
 {
@@ -53,22 +47,40 @@ Respond ONLY with valid JSON (no markdown, no extra text) matching exactly:
   ],
   "firstWeek": ["string — day 1 step", "...7 short, escalating daily steps total"]
 }
-Keep every string tight and specific to the habit. obstacles: exactly 3. firstWeek: exactly 7.`,
-      messages: [
-        {
-          role: "user",
-          content: `Habit to ${type}: "${name}"${extra ? `\n${extra}` : ""}\n\nGenerate my coaching plan.`,
-        },
-      ],
+Keep every string tight and specific to the habit. obstacles: exactly 3. firstWeek: exactly 7.`;
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Habit to ${type}: "${name}"${extra ? `\n${extra}` : ""}\n\nGenerate my coaching plan.`,
+          },
+        ],
+        max_tokens: 900,
+        temperature: 0.7,
+      }),
     });
 
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : "{}";
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
     const plan = JSON.parse(
       raw.replace(/```json|```/g, "").trim()
     ) as HabitCoachPlan;
     return NextResponse.json(plan);
-  } catch {
+  } catch (err) {
+    console.error("[habits-coach] OpenRouter call failed:", err);
     return NextResponse.json(
       { error: "Failed to generate plan" },
       { status: 500 }

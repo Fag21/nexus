@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are Nexus Coach — a warm, focused personal development assistant.
 
@@ -114,15 +111,42 @@ export async function POST(req: NextRequest) {
     })
   );
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 600,
-    system: SYSTEM_PROMPT,
-    messages: formattedMessages,
-  });
+  try {
+    const messagesWithSystem = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...formattedMessages.map((m: any) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      })),
+    ];
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: messagesWithSystem,
+        max_tokens: 600,
+        temperature: 0.7,
+      }),
+    });
 
-  return NextResponse.json({ message: text });
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content ?? "";
+
+    return NextResponse.json({ message: text });
+  } catch (err) {
+    console.error("[ai-coach] OpenRouter call failed:", err);
+    return NextResponse.json(
+      { error: "Could not generate response right now." },
+      { status: 500 }
+    );
+  }
 }

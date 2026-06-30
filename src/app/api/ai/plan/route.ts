@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
-import { WeeklyPlan } from "@/types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import type { WeeklyPlan } from "@/types";
 
 export async function GET() {
   const session = await auth();
@@ -63,12 +60,9 @@ export async function GET() {
   ].join("\n");
 
   const today = new Date();
-  const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 800,
-    system: `You are a personal development planner. 
+  try {
+    const systemPrompt = `You are a personal development planner. 
 Generate a practical weekly plan based on the user's habit and mood data.
 Respond ONLY with valid JSON matching this exact structure, no markdown, no extra text:
 {
@@ -80,22 +74,38 @@ Respond ONLY with valid JSON matching this exact structure, no markdown, no extr
   ],
   "advice": "string (2-3 sentences of personalised coaching advice)"
 }
-Each day should have 2-3 specific, actionable tasks tied to the user's actual habits.`,
-    messages: [
-      {
-        role: "user",
-        content: `User data:\n${context}\n\nToday is ${today.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}. Generate my weekly plan.`,
+Each day should have 2-3 specific, actionable tasks tied to the user's actual habits.`;
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "Content-Type": "application/json",
       },
-    ],
-  });
+      body: JSON.stringify({
+        model: "google/gemma-2-9b-it:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `User data:\n${context}\n\nToday is ${today.toLocaleDateString("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}. Generate my weekly plan.`,
+          },
+        ],
+        max_tokens: 800,
+        temperature: 0.7,
+      }),
+    });
 
-  const raw =
-    response.content[0].type === "text" ? response.content[0].text : "{}";
+    if (!res.ok) {
+      throw new Error(`OpenRouter returned status ${res.status}`);
+    }
 
-  try {
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
     const plan = JSON.parse(raw.replace(/```json|```/g, "").trim()) as WeeklyPlan;
     return NextResponse.json(plan);
-  } catch {
+  } catch (err) {
+    console.error("[ai-plan] OpenRouter call failed:", err);
     return NextResponse.json(
       { error: "Failed to parse plan" },
       { status: 500 }
