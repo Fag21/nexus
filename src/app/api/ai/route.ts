@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-2-9b-it:free",
+        model: "openrouter/free",
         messages: messagesWithSystem,
         max_tokens: 600,
         temperature: 0.7,

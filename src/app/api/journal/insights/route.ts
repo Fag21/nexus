@@ -64,7 +64,7 @@ Speak directly to the person. Be specific to their entries, not generic. If anyt
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-2-9b-it:free",
+        model: "openrouter/free",
         messages: [
           { role: "system", content: systemPrompt },
           {

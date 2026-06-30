@@ -56,7 +56,7 @@ Keep every string tight and specific to the habit. obstacles: exactly 3. firstWe
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-2-9b-it:free",
+        model: "openrouter/free",
         messages: [
           { role: "system", content: systemPrompt },
           {

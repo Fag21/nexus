@@ -83,7 +83,7 @@ Each day should have 2-3 specific, actionable tasks tied to the user's actual ha
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-2-9b-it:free",
+        model: "openrouter/free",
         messages: [
           { role: "system", content: systemPrompt },
           {
