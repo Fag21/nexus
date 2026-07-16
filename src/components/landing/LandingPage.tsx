@@ -1,6 +1,8 @@
+
 "use client";
 import Link from "next/link";
 import type { ReactNode, CSSProperties } from "react";
+import { CinematicHero } from "./CinematicHero";
 import {
   motion,
   useMotionValue,
@@ -17,7 +19,6 @@ import {
   LayoutDashboard,
   ArrowRight,
   Check,
-  ShieldCheck,
 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -210,123 +211,8 @@ function Logo() {
 export function LandingPage() {
   return (
     <div className="lp">
-      {/* Nav */}
-      <header className="lp-nav">
-        <div className="lp-container lp-nav-inner">
-          <Logo />
-          <nav className="lp-nav-actions">
-            <Link href="/auth/signin" className="lp-btn lp-btn-link lp-hide-sm">
-              Sign in
-            </Link>
-            <Link href="/auth/signup" className="lp-btn lp-btn-primary">
-              Get started
-              <ArrowRight size={16} />
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="lp-container lp-hero">
-        <motion.span
-          className="lp-eyebrow"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE }}
-        >
-          <Sparkles size={14} />
-          <span>
-            Your <b>all-in-one</b> personal growth OS
-          </span>
-        </motion.span>
-
-        <motion.h1
-          className="lp-h1"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.06, ease: EASE }}
-        >
-          Build better habits.
-          <br />
-          Grow into your <span className="lp-grad">best self.</span>
-        </motion.h1>
-
-        <motion.p
-          className="lp-sub"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.14, ease: EASE }}
-        >
-          Nexus brings your habits, screen time, journaling, reading and a
-          personal AI coach into one beautiful place — so every day moves you
-          forward.
-        </motion.p>
-
-        <motion.div
-          className="lp-cta-row"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
-        >
-          <Link href="/auth/signup" className="lp-btn lp-btn-primary lp-btn-lg">
-            Get started — it&apos;s free
-            <ArrowRight size={18} />
-          </Link>
-          <Link href="/auth/signin" className="lp-btn lp-btn-ghost lp-btn-lg">
-            I already have an account
-          </Link>
-        </motion.div>
-
-        <motion.span
-          className="lp-trust"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.28, ease: EASE }}
-        >
-          <ShieldCheck size={15} />
-          No credit card · No passwords · Sign in with Google or email
-        </motion.span>
-
-        {/* Product preview mock */}
-        <PreviewMock>
-          <div className="lp-preview-bar">
-            <span className="lp-dot" />
-            <span className="lp-dot" />
-            <span className="lp-dot" />
-          </div>
-          <div className="lp-preview-body">
-            <div className="lp-mini">
-              <div className="lp-mini-label">This week&apos;s habits</div>
-              <div className="lp-heat">
-                {[
-                  "on","on","mid","on","on","mid","on",
-                  "mid","on","on","on","mid","on","on",
-                  "on","mid","on","on","on","on","mid",
-                ].map((c, i) => (
-                  <i key={i} className={c} />
-                ))}
-              </div>
-              <div className="lp-bars">
-                {[40, 70, 55, 90, 65, 80, 100].map((h, i) => (
-                  <span key={i} style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-            <div className="lp-mini">
-              <div className="lp-mini-label">Growth score</div>
-              <div className="lp-ring" aria-hidden />
-            </div>
-            <div className="lp-mini">
-              <div className="lp-mini-label">Day streak</div>
-              <div className="lp-mini-big">21🔥</div>
-              <div className="lp-mini-label" style={{ marginTop: 14 }}>
-                Focus reclaimed
-              </div>
-              <div className="lp-mini-big">2.4h</div>
-            </div>
-          </div>
-        </PreviewMock>
-      </section>
+      {/* Cinematic Hero — full-screen video hero with nav */}
+      <CinematicHero />
 
       {/* Features */}
       <section className="lp-container lp-section" id="features">
